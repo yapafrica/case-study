@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>YAP Studio - 9:16 Traditional T-Account Video Creator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #0f172a;
+            --canvas-white: #ffffff;
+            --text-black: #000000;
+            --accent: #2563eb;
+            --danger: #dc2626;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: #f8fafc;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Toolbar with Compact Icon Buttons */
+        header {
+            background-color: #1e293b;
+            border-bottom: 1px solid #334155;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .logo {
+            font-weight: 800;
+            font-size: 0.75rem;
+            color: #fff;
+        }
+
+        .logo span {
+            color: #60a5fa;
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-icon {
+            background-color: #334155;
+            color: #fff;
+            border: 1px solid #475569;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .btn-icon:hover {
+            background-color: #475569;
+        }
+
+        .btn-primary {
+            background-color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        .btn-rec {
+            background-color: var(--danger) !important;
+            border-color: #ef4444 !important;
+            animation: pulse-red 1.5s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+        }
+
+        /* Workspace container holding the 9:16 vertical video stage */
+        .workspace {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            background-color: #090d16;
+            padding: 10px;
+        }
+
+        /* 9:16 Vertical Video Frame (Strict 360x640 ratio container) */
+        #videoStage {
+            width: 360px;
+            height: 640px;
+            max-height: 92vh;
+            background-color: var(--canvas-white);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            border-radius: 8px;
+            border: 2px solid #334155;
+        }
+
+        @media (max-width: 400px) {
+            #videoStage {
+                width: 100%;
+                height: 100%;
+                max-height: none;
+                border-radius: 0;
+                border: none;
+            }
+        }
+
+        /* Annotation Drawing Canvas Layer: Sits ON TOP of everything (z-index: 150) so ink writes everywhere across T-accounts & Case */
+        #drawCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 150;
+            pointer-events: none;
+            touch-action: none;
+        }
+        #videoStage.drawing-active #drawCanvas {
+            pointer-events: auto;
+            cursor: crosshair;
+        }
+
+        /* Case Scenario Overlay Box */
+        .canvas-case-box {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            width: 330px;
+            min-height: 100px;
+            background: rgba(255, 255, 255, 0.99);
+            border: 2px solid #2563eb;
+            padding: 8px 12px 18px 12px;
+            border-radius: 6px;
+            z-index: 100;
+            touch-action: none;
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: var(--text-black);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            resize: both;
+            overflow: auto;
+        }
+        .case-drag-handle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 800;
+            margin-bottom: 4px;
+            font-size: 0.65rem;
+            color: #1e3a8a;
+            cursor: grab;
+            background: #eff6ff;
+            padding: 3px 6px;
+            border-radius: 4px;
+            user-select: none;
+            flex-shrink: 0;
+            touch-action: none;
+        }
+        .case-drag-handle:active {
+            cursor: grabbing;
+        }
+        .canvas-case-box textarea {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-black);
+            font-size: 0.85rem;
+            font-weight: 800;
+            resize: none;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+            flex: 1;
+            min-height: 45px;
+            line-height: 1.35;
+        }
+
+        /* Traditional Black & White T-Account */
+        .trad-t-account {
+            position: absolute;
+            width: 310px;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            z-index: 90;
+            background: var(--canvas-white);
+            resize: both;
+            overflow: hidden;
+            padding-bottom: 8px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            touch-action: none;
+        }
+
+        /* Dedicated Drag Handle for T-Accounts */
+        .t-drag-handle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f1f5f9;
+            padding: 3px 6px;
+            border-bottom: 1px solid #cbd5e1;
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+        }
+        .t-drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .trad-title-input {
+            background: transparent;
+            border: none;
+            color: var(--text-black);
+            font-weight: 800;
+            font-size: 0.9rem;
+            text-align: center;
+            width: 100%;
+            outline: none;
+            text-transform: uppercase;
+            font-family: 'Inter', sans-serif;
+            pointer-events: auto;
+        }
+        .trad-title-input:focus {
+            background: rgba(0,0,0,0.05);
+            border-radius: 3px;
+        }
+
+        .delete-acc-btn {
+            background: #fee2e2;
+            color: #991b1b;
+            border: none;
+            font-size: 0.6rem;
+            padding: 2px 5px;
+            border-radius: 3px;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        /* Top Horizontal Line of the T + DR / CR Labels */
+        .trad-top-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 12px;
+            font-weight: 800;
+            font-size: 0.8rem;
+            color: var(--text-black);
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 4px;
+        }
+        .trad-top-line {
+            width: 100%;
+            height: 2px;
+            background-color: var(--text-black);
+            margin-top: 1px;
+        }
+
+        /* T-Body Split Strictly */
+        .trad-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            position: relative;
+            flex: 1;
+        }
+        .trad-vertical-stem {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 2px;
+            background-color: var(--text-black);
+            transform: translateX(-50%);
+            pointer-events: none;
+        }
+
+        .trad-side {
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            overflow-x: hidden;
+        }
+
+        .trad-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            width: 100%;
+        }
+        .trad-narration {
+            background: transparent;
+            border: none;
+            color: var(--text-black);
+            font-size: 0.75rem;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            flex: 1;
+            outline: none;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .trad-narration:focus {
+            background: rgba(0,0,0,0.05);
+            border-radius: 2px;
+        }
+        .trad-amount {
+            background: transparent;
+            border: none;
+            color: var(--text-black);
+            font-size: 0.75rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            width: 75px;
+            text-align: right;
+            outline: none;
+            flex-shrink: 0;
+        }
+        .trad-amount:focus {
+            background: rgba(0,0,0,0.08);
+            border-radius: 2px;
+        }
+        .trad-row-delete {
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 0.6rem;
+            opacity: 0.4;
+            flex-shrink: 0;
+        }
+        .trad-row:hover .trad-row-delete {
+            opacity: 1;
+        }
+
+        .trad-add-btn {
+            background: rgba(0,0,0,0.03);
+            border: 1px dashed rgba(0,0,0,0.2);
+            color: #334155;
+            font-size: 0.65rem;
+            padding: 4px;
+            border-radius: 3px;
+            cursor: pointer;
+            text-align: center;
+            margin-top: 4px;
+            font-weight: 700;
+        }
+        .trad-add-btn:hover {
+            background: rgba(0,0,0,0.08);
+            color: var(--text-black);
+        }
+
+        .trad-bottom-section {
+            border-top: 1px solid var(--text-black);
+            margin-top: 4px;
+            padding-top: 3px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            text-align: center;
+            font-weight: 800;
+            color: var(--text-black);
+        }
+        .trad-balance-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            text-align: center;
+            font-weight: 800;
+            color: #1d4ed8;
+            padding-top: 2px;
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 340px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.6);
+            overflow: hidden;
+        }
+        .modal-header {
+            padding: 10px 14px;
+            background: #334155;
+            font-weight: 700;
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-body {
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(60px);
+            background-color: #1e293b;
+            border: 1px solid #3b82f6;
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+            font-size: 0.7rem;
+            font-weight: 600;
+            z-index: 3000;
+            transition: transform 0.3s;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Toolbar -->
+    <header>
+        <div class="logo">
+            <span>YAP</span> 9:16
+        </div>
+        <div class="toolbar-group">
+            <button class="btn-icon btn-primary" title="Add T-Account" onclick="addTAccount()">➕</button>
+            <button class="btn-icon" id="caseToggleBtn" title="Toggle Case Scenario" onclick="toggleCaseBox()">📝</button>
+            <button class="btn-icon" id="drawToggleBtn" title="Draw (Red Ink)" onclick="toggleDrawing()">✏️</button>
+            <button class="btn-icon btn-danger" title="Clear Drawings" onclick="clearAnnotations()">🗑️</button>
+            <button class="btn-icon" id="recordAudioBtn" title="Record Audio/Voice" onclick="toggleAudioRecording()">🎙️</button>
+            <button class="btn-icon btn-primary" title="Export 9:16 MP4 Video" onclick="startExport()">🎬</button>
+        </div>
+    </header>
+
+    <!-- 9:16 Vertical Workspace Stage -->
+    <div class="workspace">
+        <div id="videoStage">
+            <!-- Drawing Canvas Layer (Top Overlay for full-canvas annotations) -->
+            <canvas id="drawCanvas"></canvas>
+
+            <!-- Case Scenario Overlay Box -->
+            <div class="canvas-case-box" id="caseBox" style="display: none; left: 15px; top: 15px;">
+                <div class="case-drag-handle" onpointerdown="initDrag(event, 'caseBox', 'case')">
+                    <span>≡ CASE SCENARIO (Drag here)</span>
+                    <span style="cursor: pointer; color: #dc2626;" onclick="hideCaseBox()">✕</span>
+                </div>
+                <textarea rows="3" id="caseTextArea" placeholder="Type case scenario here...">On Jan 1, owner invested $50,000 cash in the business and purchased office equipment worth $15,000 for cash.</textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal with HTML2Canvas 9:16 Video Rendering Engine -->
+    <div class="modal-overlay" id="exportModal">
+        <div class="modal">
+            <div class="modal-header">
+                <span>9:16 Vertical Video Output</span>
+                <button class="close-btn" onclick="closeModal('exportModal')">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <p id="exportStatusText" style="font-size: 0.75rem; color: #94a3b8;">Preparing 9:16 video render...</p>
+                <div style="background: #0f172a; border-radius: 4px; height: 6px; width: 100%; overflow: hidden; border: 1px solid #334155; margin: 8px 0;">
+                    <div id="exportProgressBar" style="background: var(--accent); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                </div>
+                <div id="videoPreviewArea" style="display: none; margin-top: 10px;">
+                    <video id="outputVideo" controls autoplay loop style="width: 140px; height: 248px; border-radius: 4px; border: 1px solid #334155; object-fit: cover;"></video>
+                    <br>
+                    <a id="downloadLink" class="btn-icon btn-primary" style="width: 100%; justify-content: center; text-decoration: none; padding: 8px; margin-top: 8px; height: auto;" download="YAP_Accounting_916_Video.webm">📥 Download 9:16 Video</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toastMessage">Done</div>
+
+    <!-- Include html2canvas for flawless snapshot rendering without blank screen issues -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+    <script>
+        let tAccounts = [];
+        let isDrawingMode = false;
+        let isRecording = false;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let recordedAudioUrl = null;
+        let audioStream = null;
+
+        const drawCanvas = document.getElementById('drawCanvas');
+        const ctx = drawCanvas.getContext('2d');
+        let drawing = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        function resizeDrawCanvas() {
+            const stage = document.getElementById('videoStage');
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = drawCanvas.width;
+            tempCanvas.height = drawCanvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(drawCanvas, 0, 0);
+
+            drawCanvas.width = stage.clientWidth;
+            drawCanvas.height = stage.clientHeight;
+            ctx.drawImage(tempCanvas, 0, 0);
+        }
+        window.addEventListener('resize', resizeDrawCanvas);
+        window.addEventListener('DOMContentLoaded', () => {
+            resizeDrawCanvas();
+        });
+
+        function toggleDrawing() {
+            isDrawingMode = !isDrawingMode;
+            const stage = document.getElementById('videoStage');
+            const btn = document.getElementById('drawToggleBtn');
+            if(isDrawingMode) {
+                stage.classList.add('drawing-active');
+                btn.style.background = '#dc2626';
+                showToast('Drawing ON (Writes over T-accounts & canvas)');
+            } else {
+                stage.classList.remove('drawing-active');
+                btn.style.background = '#334155';
+                showToast('Drawing OFF (Move/Edit enabled)');
+            }
+        }
+
+        function clearAnnotations() {
+            ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+            showToast('Drawings cleared');
+        }
+
+        drawCanvas.addEventListener('pointerdown', e => {
+            if(!isDrawingMode) return;
+            drawing = true;
+            const rect = drawCanvas.getBoundingClientRect();
+            lastX = e.clientX - rect.left;
+            lastY = e.clientY - rect.top;
+            e.preventDefault();
+        });
+
+        drawCanvas.addEventListener('pointermove', e => {
+            if(!drawing || !isDrawingMode) return;
+            const rect = drawCanvas.getBoundingClientRect();
+            const currentX = e.clientX - rect.left;
+            const currentY = e.clientY - rect.top;
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(currentX, currentY);
+            ctx.strokeStyle = '#dc2626';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+
+            lastX = currentX;
+            lastY = currentY;
+            e.preventDefault();
+        });
+
+        drawCanvas.addEventListener('pointerup', () => { drawing = false; });
+        drawCanvas.addEventListener('pointercancel', () => { drawing = false; });
+
+        function toggleCaseBox() {
+            const box = document.getElementById('caseBox');
+            const btn = document.getElementById('caseToggleBtn');
+            if(box.style.display === 'none' || box.style.display === '') {
+                box.style.display = 'flex';
+                btn.style.background = '#2563eb';
+                showToast('Case scenario shown');
+            } else {
+                box.style.display = 'none';
+                btn.style.background = '#334155';
+                showToast('Case hidden (content retained)');
+            }
+        }
+
+        function hideCaseBox() {
+            document.getElementById('caseBox').style.display = 'none';
+            document.getElementById('caseToggleBtn').style.background = '#334155';
+            showToast('Case hidden (content retained)');
+        }
+
+        function renderCanvas() {
+            const stage = document.getElementById('videoStage');
+            document.querySelectorAll('.trad-t-account').forEach(el => el.remove());
+
+            tAccounts.forEach(acc => {
+                let totalDebit = acc.debits.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+                let totalCredit = acc.credits.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+
+                let debitBalCF = '-', creditBalCF = '-';
+                if (totalDebit > totalCredit) {
+                    creditBalCF = `c/f: $${(totalDebit - totalCredit).toLocaleString()}`;
+                } else if (totalCredit > totalDebit) {
+                    debitBalCF = `c/f: $${(totalCredit - totalDebit).toLocaleString()}`;
+                } else {
+                    debitBalCF = '$0';
+                    creditBalCF = '$0';
+                }
+
+                let debitRowsHTML = '';
+                acc.debits.forEach(row => {
+                    debitRowsHTML += `
+                        <div class="trad-row">
+                            <input type="text" class="trad-narration" value="${row.narration}" oninput="updateNarration('${acc.id}', 'debits', ${row.id}, this.value)" placeholder="Narration">
+                            <input type="number" class="trad-amount" value="${row.amount}" oninput="updateAmount('${acc.id}', 'debits', ${row.id}, this.value)" placeholder="0" min="0" step="any">
+                            <span class="trad-row-delete" onclick="deleteRow('${acc.id}', 'debits', ${row.id})">✕</span>
+                        </div>
+                    `;
+                });
+
+                let creditRowsHTML = '';
+                acc.credits.forEach(row => {
+                    creditRowsHTML += `
+                        <div class="trad-row">
+                            <input type="text" class="trad-narration" value="${row.narration}" oninput="updateNarration('${acc.id}', 'credits', ${row.id}, this.value)" placeholder="Narration">
+                            <input type="number" class="trad-amount" value="${row.amount}" oninput="updateAmount('${acc.id}', 'credits', ${row.id}, this.value)" placeholder="0" min="0" step="any">
+                            <span class="trad-row-delete" onclick="deleteRow('${acc.id}', 'credits', ${row.id})">✕</span>
+                        </div>
+                    `;
+                });
+
+                const tEl = document.createElement('div');
+                tEl.className = 'trad-t-account';
+                tEl.id = acc.id;
+                tEl.style.left = acc.x + 'px';
+                tEl.style.top = acc.y + 'px';
+                tEl.innerHTML = `
+                    <div class="t-drag-handle" onpointerdown="initDrag(event, '${acc.id}', 'tAccount')">
+                        <span style="font-size: 0.65rem; font-weight: 800; color: #1e3a8a;">≡ T-ACCOUNT</span>
+                        <div style="display: flex; gap: 4px; align-items: center;">
+                            <button class="delete-acc-btn" onclick="deleteTAccount('${acc.id}')">Del</button>
+                        </div>
+                    </div>
+                    <div style="padding: 4px; background: #f8fafc; border-bottom: 1px solid #cbd5e1;">
+                        <input type="text" class="trad-title-input" value="${acc.title}" oninput="updateTitle('${acc.id}', this.value)">
+                    </div>
+                    <div class="trad-top-container">
+                        <span>Dr.</span>
+                        <span>Cr.</span>
+                    </div>
+                    <div class="trad-top-line"></div>
+                    <div class="trad-body">
+                        <div class="trad-vertical-stem"></div>
+                        <div class="trad-side">
+                            ${debitRowsHTML}
+                            <div class="trad-add-btn" onclick="addRow('${acc.id}', 'debits')">+ Dr Entry</div>
+                        </div>
+                        <div class="trad-side">
+                            ${creditRowsHTML}
+                            <div class="trad-add-btn" onclick="addRow('${acc.id}', 'credits')">+ Cr Entry</div>
+                        </div>
+                    </div>
+                    <div class="trad-bottom-section">
+                        <div>$${totalDebit.toLocaleString()}</div>
+                        <div>$${totalCredit.toLocaleString()}</div>
+                    </div>
+                    <div class="trad-balance-row">
+                        <div>${debitBalCF}</div>
+                        <div>${creditBalCF}</div>
+                    </div>
+                `;
+                stage.appendChild(tEl);
+            });
+        }
+
+        function addTAccount() {
+            tAccounts.push({
+                id: 'acc_' + Date.now(),
+                title: 'CASH ACCOUNT',
+                x: 25,
+                y: 160 + (tAccounts.length * 190) % 350,
+                debits: [{ id: Date.now(), narration: 'Capital', amount: 10000 }],
+                credits: []
+            });
+            renderCanvas();
+            showToast('T-Account added');
+        }
+
+        function deleteTAccount(id) {
+            tAccounts = tAccounts.filter(a => a.id !== id);
+            renderCanvas();
+            showToast('T-Account removed');
+        }
+
+        function updateTitle(id, val) {
+            const acc = tAccounts.find(a => a.id === id);
+            if(acc) acc.title = val;
+        }
+
+        function addRow(accId, side) {
+            const acc = tAccounts.find(a => a.id === accId);
+            if(acc) {
+                acc[side].push({ id: Date.now(), narration: '', amount: 0 });
+                renderCanvas();
+            }
+        }
+
+        function deleteRow(accId, side, rowId) {
+            const acc = tAccounts.find(a => a.id === accId);
+            if(acc) {
+                acc[side] = acc[side].filter(r => r.id !== rowId);
+                renderCanvas();
+            }
+        }
+
+        function updateNarration(accId, side, rowId, val) {
+            const acc = tAccounts.find(a => a.id === accId);
+            if(acc) {
+                const row = acc[side].find(r => r.id === rowId);
+                if(row) row.narration = val;
+            }
+        }
+
+        function updateAmount(accId, side, rowId, val) {
+            const acc = tAccounts.find(a => a.id === accId);
+            if(acc) {
+                const row = acc[side].find(r => r.id === rowId);
+                if(row) {
+                    const parsed = parseFloat(val);
+                    row.amount = isNaN(parsed) ? 0 : parsed;
+                }
+            }
+        }
+
+        let activeDrag = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        function initDrag(e, id, type) {
+            if(isDrawingMode) return;
+            if(e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'TEXTAREA') return;
+            
+            activeDrag = { id, type };
+            const el = document.getElementById(id);
+            const rect = el.getBoundingClientRect();
+            
+            const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : rect.left);
+            const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : rect.top);
+
+            dragOffsetX = clientX - rect.left;
+            dragOffsetY = clientY - rect.top;
+            
+            document.addEventListener('pointermove', onPointerMove);
+            document.addEventListener('pointerup', onPointerUp);
+            e.stopPropagation();
+            e.preventDefault();
+        }
+
+        function onPointerMove(e) {
+            if(!activeDrag) return;
+            const stageRect = document.getElementById('videoStage').getBoundingClientRect();
+            const clientX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
+            const clientY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+            
+            const newX = clientX - stageRect.left - dragOffsetX;
+            const newY = clientY - stageRect.top - dragOffsetY;
+
+            if(activeDrag.type === 'tAccount') {
+                const acc = tAccounts.find(a => a.id === activeDrag.id);
+                if(acc) { 
+                    acc.x = Math.max(0, newX); 
+                    acc.y = Math.max(0, newY); 
+                    const el = document.getElementById(acc.id);
+                    if(el) {
+                        el.style.left = acc.x + 'px';
+                        el.style.top = acc.y + 'px';
+                    }
+                }
+            } else if(activeDrag.type === 'case') {
+                const box = document.getElementById('caseBox');
+                box.style.left = Math.max(0, newX) + 'px';
+                box.style.top = Math.max(0, newY) + 'px';
+            }
+        }
+
+        function onPointerUp() {
+            activeDrag = null;
+            document.removeEventListener('pointermove', onPointerMove);
+            document.removeEventListener('pointerup', onPointerUp);
+        }
+
+        // Robust Microphone Voice Recording Setup with fallback options
+        async function toggleAudioRecording() {
+            const btn = document.getElementById('recordAudioBtn');
+
+            if(!isRecording) {
+                try {
+                    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(audioStream);
+                    recordedChunks = [];
+
+                    mediaRecorder.ondataavailable = e => {
+                        if(e.data.size > 0) recordedChunks.push(e.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                        recordedAudioUrl = URL.createObjectURL(blob);
+                        showToast('Voice narration recorded successfully!');
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+                    btn.classList.add('btn-rec');
+                    showToast('Recording voice narration...');
+                } catch(e) {
+                    console.warn('Microphone permission or secure context restriction:', e);
+                    showToast('Microphone access denied or requires HTTPS/GitHub Pages');
+                }
+            } else {
+                if(mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+                if(audioStream) {
+                    audioStream.getTracks().forEach(track => track.stop());
+                }
+                isRecording = false;
+                btn.classList.remove('btn-rec');
+                showToast('Voice recording stopped');
+            }
+        }
+
+        // 9:16 Video Rendering using html2canvas canvas snapshot capture sequence
+        async function startExport() {
+            openModal('exportModal');
+            const bar = document.getElementById('exportProgressBar');
+            const txt = document.getElementById('exportStatusText');
+            const previewArea = document.getElementById('videoPreviewArea');
+            const videoElem = document.getElementById('outputVideo');
+            const downloadLink = document.getElementById('downloadLink');
+
+            previewArea.style.display = 'none';
+            bar.style.width = '20%';
+            txt.innerText = 'Capturing 9:16 canvas frame snapshot...';
+
+            const stage = document.getElementById('videoStage');
+
+            try {
+                // Temporarily hide handles/buttons during screenshot capture for clean video output
+                const handles = document.querySelectorAll('.t-drag-handle, .case-drag-handle, .delete-acc-btn, .trad-row-delete, .trad-add-btn');
+                handles.forEach(el => el.style.opacity = '0');
+
+                const canvasSnapshot = await html2canvas(stage, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                });
+
+                handles.forEach(el => el.style.opacity = '1');
+
+                bar.style.width = '60%';
+                txt.innerText = 'Generating 9:16 WebM video stream...';
+
+                const stream = canvasSnapshot.captureStream(30);
+                
+                // Attach recorded microphone audio track if available
+                if(recordedAudioUrl && audioStream) {
+                    try {
+                        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        const dest = audioCtx.createMediaStreamDestination();
+                        const audioEl = new Audio(recordedAudioUrl);
+                        audioEl.crossOrigin = 'anonymous';
+                        const source = audioCtx.createMediaElementSource(audioEl);
+                        source.connect(dest);
+                        source.connect(audioCtx.destination);
+                        
+                        dest.stream.getAudioTracks().forEach(track => stream.addTrack(track));
+                    } catch(err) {
+                        console.log('Audio merging skipped:', err);
+                    }
+                }
+
+                const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9,opus' });
+                const chunks = [];
+
+                recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
+                recorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: 'video/webm' });
+                    const videoUrl = URL.createObjectURL(blob);
+                    
+                    bar.style.width = '100%';
+                    txt.innerText = '9:16 Video generated successfully!';
+                    videoElem.src = videoUrl;
+                    downloadLink.href = videoUrl;
+                    previewArea.style.display = 'block';
+                };
+
+                recorder.start();
+                // Record 2 seconds snapshot loop video
+                setTimeout(() => {
+                    recorder.stop();
+                }, 2000);
+
+            } catch (err) {
+                console.error('Export error:', err);
+                bar.style.width = '100%';
+                txt.innerText = 'Export error. Try hosting on GitHub Pages for full media APIs.';
+            }
+        }
+
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        
+        function showToast(msg) {
+            const t = document.getElementById('toastMessage');
+            t.innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2500);
+        }
+    </script>
+</body>
+</html>
